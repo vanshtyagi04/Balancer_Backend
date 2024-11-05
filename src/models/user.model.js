@@ -1,6 +1,7 @@
 import mongoose, { Schema } from "mongoose";
 import jwt from "jsonwebtoken"
 import bcrypt from "bcrypt"
+import Group from "./group.model.js";
 
 const userSchema = new Schema(
     {
@@ -26,11 +27,10 @@ const userSchema = new Schema(
             type: String,
             required: [true, 'Password is required']
         },
-        isAdmin: {
-            type: Boolean,
-            required: true,
-            default: false,
-        },
+        groupID: [{
+            type: Schema.Types.ObjectId,
+            ref: "Group",
+        }],
         refreshToken: {
             type: String
         }
@@ -51,6 +51,27 @@ userSchema.pre("save", async function (next) {
         next();
     } catch (error) {
         next(error);
+    }
+});
+
+userSchema.pre("save", async function (next) {
+    if (this.isNew) { 
+        try {
+                const groupData = {
+                name: "Personal Space",
+                description: `This is ${this.username}'s personal group.`,
+                admin: this._id,
+                members: [this._id], 
+                chat: null, 
+            };
+            const savedGroup = await Group.create(groupData);
+            this.groupID.push(savedGroup._id);
+            next();  
+        } catch (error) {
+            next(error);  
+        }
+    } else {
+        next(); 
     }
 });
 
