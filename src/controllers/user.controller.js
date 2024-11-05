@@ -1,7 +1,7 @@
 import {asyncHandler} from "../utils/asyncHandler.js"
 import {ApiError} from "../utils/ApiError.js"
 import {User} from "../models/user.model.js"
-import {uploadOnCloudinary} from "../utils/cloudinary.js"
+import {uploadOnCloudinary, deleteCloudinary} from "../utils/cloudinary.js"
 import { ApiResponse } from "../utils/ApiResponse.js"
 import jwt from "jsonwebtoken"
 
@@ -22,21 +22,11 @@ const generateAccessAndRefreshTokens = async(userId) => {
 }
 
 const registerUser = asyncHandler( async (req, res) => {
-    // Get user details from frontend
-    // Validation - not empty
-    // Check if user already exist: username and email
-    // Check for images and pic
-    // Upload them to cloudinary, pic
-    // Create user object - create entry in db
-    // Remove password and refresh token field from response 
-    // Check for user creation 
-    // Return response
 
-    const {fullName, email, username, password} = req.body
-    // console.log("Email :", email);
+    const { email, username, password} = req.body
 
     if(
-        [fullName, email, username, password].some((field) => field?.trim() === "")
+        [ email, username, password].some((field) => field?.trim() === "")
     ) {
         throw new ApiError(400, "All fields are required")
     }
@@ -48,10 +38,8 @@ const registerUser = asyncHandler( async (req, res) => {
     if(existedUser) {
         throw new ApiError(409, "User with email or username already exists")
     }
-    // console.log(req.files)
 
     const picLocalPath = req.files?.pic[0]?.path
-    // const coverImageLocalPath = req.files?.coverImage[0]?.path;
 
     if(!picLocalPath) {
         throw new ApiError(400, "pic file is required")
@@ -64,7 +52,7 @@ const registerUser = asyncHandler( async (req, res) => {
     }
 
     const user = await User.create({
-        fullName, 
+         
         pic: pic.url, 
         coverImage: coverImage?.url || "", 
         email, 
@@ -87,12 +75,6 @@ const registerUser = asyncHandler( async (req, res) => {
 })
 
 const loginUser = asyncHandler(async(req, res) => {
-    // req body -> data
-    // username or email based access
-    // find the user
-    // password check
-    // access and refresh token
-    // send cookies
 
     const {email, username, password} = req.body
 
@@ -232,9 +214,9 @@ const getCurrentUser = asyncHandler(async(req, res) => {
 })
 
 const updateAccountDetails = asyncHandler(async(req, res) => {
-    const {fullName, email} = req.body
+    const { email} = req.body
 
-    if(!fullName || !email) {
+    if(!email) {
         throw new ApiError(400, "All fields are required")
     }
 
@@ -242,7 +224,7 @@ const updateAccountDetails = asyncHandler(async(req, res) => {
         req.user?._id, 
         {
             $set: {
-                fullName, 
+                 
                 email, 
             }
         }, 
@@ -254,35 +236,37 @@ const updateAccountDetails = asyncHandler(async(req, res) => {
     .json(new ApiResponse(200, user, "Account details updated successfully"))
 })
 
-const updateUserPic = asyncHandler(async(req, res) => {
-    const picLocalPath = req.file?.path
+const updateUserPic = asyncHandler(async (req, res) => {
+    const picLocalPath = req.file?.path;
 
-    if(!picLocalPath) {
-        throw new ApiError(400, "pic file is missing")
+    if (!picLocalPath) {
+        throw new ApiError(400, "pic file is missing");
     }
 
-    const pic = await uploadOnCloudinary(picLocalPath)
-    
-    if(!pic.url) {
-        throw new ApiError(400, "Error while uploading pic")
+    const user = await User.findById(req.user?._id);
+    if (!user) {
+        throw new ApiError(404, "User not found");
     }
 
-    const user = await User.findByIdAndUpdate(
-        req.user?._id,
-        {
-            $set: {
-                pic: pic.url
-            }
-        }, 
-        {new: true}
-    ).select("-password")
+    const oldPicUrl = user.pic;
+    const oldPublicId = oldPicUrl ? oldPicUrl.split('/').pop().split('.')[0] : null;
 
-    return res
-    .status(200)
-    .json(
-        new ApiResponse(200, user, "pic image updated successfully")
-    )
-})
+    const pic = await uploadOnCloudinary(picLocalPath);
+    if (!pic.url) {
+        throw new ApiError(400, "Error while uploading pic");
+    }
+
+    if (oldPublicId) {
+        await deleteCloudinary(oldPublicId);
+    }
+
+    user.pic = pic.url;
+    await user.save();
+
+    return res.status(200).json(
+        new ApiResponse(200, user.select("-password"), "pic image updated successfully")
+    );
+});
 
 export {
     registerUser, 
