@@ -63,10 +63,7 @@ const taskSchema = new Schema(
             ref: "Category",
             required: true,
         },
-        createdAt: {
-            type: Date,
-            default: Date.now
-        },
+        
         completedAt: {
             type: Date,
             default: null
