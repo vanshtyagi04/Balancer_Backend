@@ -62,6 +62,7 @@ userSchema.pre("save", async function (next) {
                 description: `This is ${this.username}'s personal group.`,
                 admin: this._id,
                 members: [this._id], 
+                isPersonal: true,
                 chat: null, 
             };
             const savedGroup = await Group.create(groupData);

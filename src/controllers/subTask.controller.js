@@ -1,12 +1,13 @@
 import SubTask from '../models/subTask.model.js'; 
 import ApiError from '../utils/ApiError.js'; 
-import ApiResponse from '../utils/ApiResponse.js'; 
+import ApiResponse from '../utils/ApiResponse.js';
+import { asyncHandler } from '../utils/asyncHandler.js'; 
 
-const createSubTask = async (req, res, next) => {
+const createSubTask = asyncHandler(async (req, res, next) => {
     const { title, description, parent } = req.body;
 
     if (!title || !description || !parent) {
-        return next(new ApiError(400, "Title, description, and parent task are required."));
+        throw new ApiError(400, "Title, description, and parent task are required.");
     }
 
     const subTaskData = {
@@ -22,17 +23,17 @@ const createSubTask = async (req, res, next) => {
         .json(new ApiResponse(201, newSubTask, "Subtask created successfully."));
     } 
     catch (error) {
-        return next(new ApiError(500, "Error creating subtask."));
+        throw new ApiError(500, "Error creating subtask.");
     }
-};
+})
 
-const deleteSubTask = async (req, res, next) => {
+const deleteSubTask = asyncHandler(async (req, res) => {
     const { id } = req.params; 
 
     try {
         const subTask = await SubTask.findById(id);
         if (!subTask) {
-            return next(new ApiError(404, "Subtask not found."));
+            throw new ApiError(404, "Subtask not found.");
         }
 
         await SubTask.findByIdAndDelete(id);
@@ -40,9 +41,9 @@ const deleteSubTask = async (req, res, next) => {
         .status(200)
         .json(new ApiResponse(200, null, "Subtask deleted successfully."));
     } catch (error) {
-        return next(new ApiError(500, "Error deleting subtask."));
+        throw new ApiError(500, "Error deleting subtask.");
     }
-};
+})
 
 export { 
     createSubTask, 

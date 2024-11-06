@@ -2,12 +2,13 @@ import Group from '../models/group.model.js';
 import ApiError from '../utils/ApiError.js';
 import ApiResponse from '../utils/ApiResponse.js';
 import Chat from '../models/chat.model.js';
+import { asyncHandler } from '../utils/asyncHandler.js';
 
-const createGroup = async (req, res, next) => {
+const createGroup = asyncHandler(async (req, res) => {
     const { name, description, isPersonal } = req.body;
 
     if (!name || !description) {
-        return next(new ApiError(400, "Name and description are required."));
+        throw new ApiError(400, "Name and description are required.");
     }
 
     const groupData = {
@@ -24,17 +25,17 @@ const createGroup = async (req, res, next) => {
         .json(new ApiResponse(201, newGroup, "Group created successfully."));
     } 
     catch (error) {
-        return next(new ApiError(500, "Error creating group."));
+        throw new ApiError(500, "Error creating group.");
     }
-};
+})
 
-const deleteGroup = async (req, res, next) => {
+const deleteGroup = asyncHandler(async (req, res) => {
     const { id } = req.params;
 
     try {
         const group = await Group.findById(id);
         if (!group) {
-            return next(new ApiError(404, "Group not found."));
+            throw new ApiError(404, "Group not found.");
         }
 
         await Chat.findByIdAndDelete(group.chat);
@@ -45,22 +46,22 @@ const deleteGroup = async (req, res, next) => {
         .json(new ApiResponse(200, null, "Group deleted successfully."));
     } 
     catch (error) {
-        return next(new ApiError(500, "Error deleting group."));
+        throw new ApiError(500, "Error deleting group.");
     }
-};
+})
 
-const addMembers = async (req, res, next) => {
+const addMembers = asyncHandler(async (req, res) => {
     const { id } = req.params;
     const { members } = req.body;
 
     try {
         const group = await Group.findById(id);
         if (!group) {
-            return next(new ApiError(404, "Group not found."));
+            throw new ApiError(404, "Group not found.");
         }
 
         if (group.isPersonal) {
-            return next(new ApiError(403, "Cannot add members to a personal group."));
+            throw new ApiError(403, "Cannot add members to a personal group.");
         }
 
         group.members.push(...members);
@@ -76,22 +77,22 @@ const addMembers = async (req, res, next) => {
         .status(200)
         .json(new ApiResponse(200, group, "Members added successfully."));
     } catch (error) {
-        return next(new ApiError(500, "Error adding members to group."));
+        throw new ApiError(500, "Error adding members to group.");
     }
-};
+})
 
-const removeMembers = async (req, res, next) => {
+const removeMembers = asyncHandler(async (req, res) => {
     const { id } = req.params;
     const { members } = req.body;
 
     try {
         const group = await Group.findById(id);
         if (!group) {
-            return next(new ApiError(404, "Group not found."));
+            throw new ApiError(404, "Group not found.");
         }
 
         if (group.isPersonal) {
-            return next(new ApiError(403, "Cannot remove members from a personal group."));
+            throw new ApiError(403, "Cannot remove members from a personal group.");
         }
 
         group.members = group.members.filter(member => !members.includes(member.toString()));
@@ -108,17 +109,17 @@ const removeMembers = async (req, res, next) => {
         .json(new ApiResponse(200, group, "Members removed successfully."));
     } 
     catch (error) {
-        return next(new ApiError(500, "Error removing members from group."));
+        throw new ApiError(500, "Error removing members from group.");
     }
-};
+})
 
-const getGroup = async (req, res, next) => {
+const getGroup = asyncHandler(async (req, res) => {
     const { id } = req.params;
 
     try {
         const group = await Group.findById(id).populate('chat');
         if (!group) {
-            return next(new ApiError(404, "Group not found."));
+            throw new ApiError(404, "Group not found.");
         }
 
         return res
@@ -128,22 +129,22 @@ const getGroup = async (req, res, next) => {
             chatId: group.chat,
         }, "Group information retrieved successfully."));
     } catch (error) {
-        return next(new ApiError(500, "Error retrieving group information."));
+        throw new ApiError(500, "Error retrieving group information.");
     }
-};
+})
 
-const changeAdmin = async (req, res, next) => {
+const changeAdmin = asyncHandler(async (req, res) => {
     const { id } = req.params;
     const { newAdminId } = req.body;
 
     try {
         const group = await Group.findById(id);
         if (!group) {
-            return next(new ApiError(404, "Group not found."));
+            throw new ApiError(404, "Group not found.");
         }
 
         if (!group.members.includes(newAdminId)) {
-            return next(new ApiError(403, "New admin must be a member of the group."));
+            throw new ApiError(403, "New admin must be a member of the group.");
         }
 
         group.admin = newAdminId;
@@ -154,18 +155,18 @@ const changeAdmin = async (req, res, next) => {
         .json(new ApiResponse(200, group, "Admin changed successfully."));
     } 
     catch (error) {
-        return next(new ApiError(500, "Error changing group admin."));
+        throw new ApiError(500, "Error changing group admin.");
     }
-};
+})
 
-const updateGroupInfo = async (req, res, next) => {
+const updateGroupInfo = asyncHandler(async (req, res) => {
     const { id } = req.params;
     const { name, description } = req.body;
 
     try {
         const group = await Group.findById(id);
         if (!group) {
-            return next(new ApiError(404, "Group not found."));
+            throw new ApiError(404, "Group not found.");
         }
 
         if (name) group.name = name;
@@ -178,9 +179,9 @@ const updateGroupInfo = async (req, res, next) => {
         .json(new ApiResponse(200, group, "Group information updated successfully."));
     } 
     catch (error) {
-        return next(new ApiError(500, "Error updating group information."));
+        throw new ApiError(500, "Error updating group information.");
     }
-};
+})
 
 export { 
     createGroup, 
