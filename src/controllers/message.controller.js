@@ -1,6 +1,6 @@
 import Message from "../models/message.model.js";
 import Chat from "../models/chat.model.js";
-import asyncHandler from "../utils/asyncHandler.js";
+import { asyncHandler } from "../utils/asyncHandler.js";
 import ApiResponse from "../utils/ApiResponse.js";
 
 const createMessage = asyncHandler(async (req, res) => {

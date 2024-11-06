@@ -1,4 +1,7 @@
 import {asyncHandler} from "../utils/asyncHandler.js"
+import Notification from "../models/notification.model.js";
+import Chat from "./chat.model.js";
+import Group from "../models/group.model.js";
 import ApiError from "../utils/ApiError.js"
 import User from "../models/user.model.js"
 import {uploadOnCloudinary, deleteCloudinary} from "../utils/cloudinary.js"
@@ -103,8 +106,6 @@ const loginUser = asyncHandler(async(req, res) => {
         httpOnly: true, 
         secure: true
     }
-
-    // user total unread messages
 
     return res
     .status(200)
@@ -270,9 +271,40 @@ const updateUserPic = asyncHandler(async (req, res) => {
     );
 });
 
-// getnotifiactions
+export const getNotifications = asyncHandler(async (req, res) => {
+    const userId = req.user._id;
 
-//getchats
+    const userGroups = await Group.find({ members: userId }).select("_id");
+
+    if (!userGroups || userGroups.length === 0) {
+        return res.status(404).json(new ApiResponse(404, null, "User is not part of any groups."));
+    }
+
+    const groupIds = userGroups.map(group => group._id);
+
+    const notifications = await Notification.find({ groupName: { $in: groupIds } })
+        .sort({ createdAt: -1 }) 
+        .exec();
+
+    res.status(200).json(new ApiResponse(200, notifications, "Notifications retrieved successfully."));
+});
+
+
+const getChatsForUser = asyncHandler(async (req, res) => {
+    const { userId } = req.params;
+  
+    const user = await User.findById(userId).select("groupID");
+    if (!user) {
+      return res.status(404).json(new ApiResponse(404, null, "User not found", false));
+    }
+  
+    const chats = await Chat.find({ groupID: { $in: user.groupID } })
+      .populate("groupID", "name")  
+      .populate("users", "username email")  
+      .select("groupID users latestMessage createdAt updatedAt");
+
+    res.status(200).json(new ApiResponse(200, chats, "Chats retrieved successfully"));
+  });
 
 export {
     registerUser, 
@@ -283,4 +315,6 @@ export {
     getCurrentUser, 
     updateAccountDetails, 
     updateUserPic, 
+    getNotifications, 
+    getChatsForUser
 }
