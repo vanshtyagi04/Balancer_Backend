@@ -10,38 +10,18 @@ const createMessage = asyncHandler(async (req, res) => {
         return res.status(400).json(new ApiResponse(400, null, "Sender, content, and chat ID are required."));
     }
 
-    const newMessage = new Message({
+    const newMessage = await Message.create({
         sender,
         content,
         chat: chatId,
     });
-    
-    await newMessage.save();
 
     await Chat.findByIdAndUpdate(chatId, { latestMessage: content });
 
     res.status(201).json(new ApiResponse(201, newMessage, "Message created successfully."));
 });
 
-const deleteMessage = asyncHandler(async (req, res) => {
-    const { messageId } = req.params;
-
-    const message = await Message.findByIdAndDelete(messageId);
-
-    if (!message) {
-        return res.status(404).json(new ApiResponse(404, null, "Message not found."));
-    }
-
-    const latestMessage = await Message.findOne({ chat: message.chat })
-        .sort({ createdAt: -1 })
-        .select("content");
-
-    await Chat.findByIdAndUpdate(message.chat, { latestMessage: latestMessage ? latestMessage.content : null });
-
-    res.status(200).json(new ApiResponse(200, null, "Message deleted successfully."));
-});
-
-export const markMessageAsRead = asyncHandler(async (req, res) => {
+const markMessageAsRead = asyncHandler(async (req, res) => {
     const { messageId } = req.params;
     const userId = req.user._id;  
 
@@ -61,6 +41,5 @@ export const markMessageAsRead = asyncHandler(async (req, res) => {
 
 export {
     createMessage,
-    deleteMessage,
     markMessageAsRead,
 }
