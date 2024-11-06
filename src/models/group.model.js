@@ -1,5 +1,6 @@
 import mongoose, { Schema } from "mongoose";
 import Category from "./category.model.js";
+import Chat from "./chat.model.js";
 
 const groupSchema = new Schema(
     {
@@ -28,9 +29,15 @@ const groupSchema = new Schema(
                 message: 'Admin must be included in the members list.',
             },
         }],
+        isPersonal: {
+            type: Boolean,
+            default: true,
+            required: true,
+        },
         chat: {
             type: Schema.Types.ObjectId,
             ref: "Chat",
+            default: null,
         }
     },
     {
@@ -53,7 +60,16 @@ groupSchema.post('save', async function(doc, next) {
             groupID: doc._id, 
         };
         const newCategory = new Category(categoryData);
-        await newCategory.save(); 
+        await newCategory.save();
+
+        const chatData = {
+            groupID: doc._id,
+            participants: doc.members,
+        };
+        const newChat = new Chat(chatData);
+        await newChat.save();
+
+        await mongoose.model("Group").findByIdAndUpdate(doc._id, { chat: newChat._id });
 
         next();
     } catch (error) {
