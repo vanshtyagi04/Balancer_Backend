@@ -2,6 +2,7 @@ import Task from "../models/task.model.js";
 import ApiResponse from "../utils/ApiResponse.js";
 import ApiError from "../utils/ApiError.js"
 import { asyncHandler } from "../utils/asyncHandler.js";
+import SubTask from "../models/subTask.model.js";
 
 const createTask = asyncHandler(async (req, res) => {
     const { title, description, dueDate, priority, assignedBy, assignedTo, categoryID } = req.body;
@@ -145,6 +146,19 @@ const getTasksByPriority = asyncHandler(async (req, res) => {
     }
 });
 
+const getSubTasksForTask = asyncHandler(async (req, res) => {
+    const { taskId } = req.body;
+    try {
+        const subtasks = await SubTask.find({ parent: taskId });
+        if (!subtasks || subtasks.length === 0) {
+            throw new ApiError(404, "No subtasks found for this task.");
+        }
+        return res.status(200).json(new ApiResponse(200, subtasks, "Subtasks retrieved successfully."));
+    } catch (error) {
+        throw new ApiError(500, "Error retrieving subtasks for this task.");
+    }
+})
+
 export {
     createTask,
     updateTask,
@@ -152,5 +166,6 @@ export {
     getTasksByUser,
     getTasksByStage,
     getTasksByDueDate,
-    getTasksByPriority
+    getTasksByPriority,
+    getSubTasksForTask
 };
