@@ -3,13 +3,6 @@ import Group from "./group.model.js";
 
 const chatSchema = new Schema(
     {
-        chatName: { 
-            type: String, 
-            trim: true, 
-            required: [true, 'Chat name is required'],
-            minlength: [3, 'Chat name should be at least 3 characters long'],
-            maxlength: [50, 'Chat name should not be longer than 50 characters'],
-        },
         groupID: {
             type: mongoose.Schema.Types.ObjectId, 
             ref: "Group",
@@ -17,12 +10,12 @@ const chatSchema = new Schema(
         },
         users: [{ 
             type: mongoose.Schema.Types.ObjectId, 
-            ref: "User", 
-            required: [true, 'Users are required in the chat'],
+            ref: "User",
+            default: null,
         }],
         latestMessage: {
-            type: mongoose.Schema.Types.ObjectId,
-            ref: "Message",
+            type: String,
+            default: null,
         },
     },
     {
@@ -30,7 +23,7 @@ const chatSchema = new Schema(
     }
 );
 
-chatSchema.pre('save', async function(next) {
+chatSchema.post('save', async function(next) {
     try {
         if (this.isNew) {
             const group = await Group.findById(this.groupID).select('members');
