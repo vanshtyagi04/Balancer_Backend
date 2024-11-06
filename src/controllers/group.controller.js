@@ -117,17 +117,14 @@ const getGroup = asyncHandler(async (req, res) => {
     const { id } = req.params;
 
     try {
-        const group = await Group.findById(id).populate('chat');
+        const group = await Group.findById(id).populate('chat').populate('members' , 'username email pic');
         if (!group) {
             throw new ApiError(404, "Group not found.");
         }
-
+        // group unread messages 
         return res
         .status(200)
-        .json(new ApiResponse(200, {
-            groupId: group._id,
-            chatId: group.chat,
-        }, "Group information retrieved successfully."));
+        .json(new ApiResponse(200,group, "Group information retrieved successfully."));
     } catch (error) {
         throw new ApiError(500, "Error retrieving group information.");
     }

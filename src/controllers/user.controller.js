@@ -104,6 +104,8 @@ const loginUser = asyncHandler(async(req, res) => {
         secure: true
     }
 
+    // user total unread messages
+
     return res
     .status(200)
     .cookie("accessToken", accessToken, options)
@@ -267,6 +269,10 @@ const updateUserPic = asyncHandler(async (req, res) => {
         new ApiResponse(200, user.select("-password"), "pic image updated successfully")
     );
 });
+
+// getnotifiactions
+
+//getchats
 
 export {
     registerUser, 

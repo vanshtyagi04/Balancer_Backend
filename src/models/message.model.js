@@ -1,4 +1,5 @@
 import mongoose, { Schema } from "mongoose";
+import Chat from "./chat.model.js";
 
 const messageSchema = new Schema(
     {
@@ -24,18 +25,31 @@ const messageSchema = new Schema(
         }],
         deliveredTo: [{
             type: Schema.Types.ObjectId, 
-            ref: "User" 
+            ref: "User", 
+            default: null,
         }],
-        status: {
-            type: String,
-            enum: ['sent', 'delivered', 'seen'],
-            default: 'sent',
-        },
     },
     {
         timestamps: true,  
     }
 );
+
+messageSchema.post('save', async function(next) {
+    try {
+        if (this.isNew) {
+            const user = await Chat.findById(this.chat).select('users');
+            if (!user) {
+                return next(new Error('Users not found'));
+            }
+            this.deliveredTo = user.users;
+            next();
+        } else {
+            next();
+        }
+    } catch (error) {
+        next(error);
+    }
+})
 
 const Message = mongoose.model("Message", messageSchema);
 export default Message;
