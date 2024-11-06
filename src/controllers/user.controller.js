@@ -1,4 +1,7 @@
 import {asyncHandler} from "../utils/asyncHandler.js"
+import Notification from "../models/notification.model.js";
+import Chat from "./chat.model.js";
+import Group from "../models/group.model.js";
 import ApiError from "../utils/ApiError.js"
 import User from "../models/user.model.js"
 import {uploadOnCloudinary, deleteCloudinary} from "../utils/cloudinary.js"
@@ -103,8 +106,6 @@ const loginUser = asyncHandler(async(req, res) => {
         httpOnly: true, 
         secure: true
     }
-
-    // user total unread messages
 
     return res
     .status(200)
@@ -270,9 +271,6 @@ const updateUserPic = asyncHandler(async (req, res) => {
     );
 });
 
-// getnotifiactions
-
-//getchats
 
 export {
     registerUser, 
