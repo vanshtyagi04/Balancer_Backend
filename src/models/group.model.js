@@ -31,7 +31,7 @@ const groupSchema = new Schema(
         }],
         isPersonal: {
             type: Boolean,
-            default: true,
+            default: false,
             required: true,
         },
         chat: {
