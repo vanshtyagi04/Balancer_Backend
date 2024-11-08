@@ -1,7 +1,4 @@
 import {asyncHandler} from "../utils/asyncHandler.js"
-import Notification from "../models/notification.model.js";
-import Chat from "./chat.model.js";
-import Group from "../models/group.model.js";
 import ApiError from "../utils/ApiError.js"
 import User from "../models/user.model.js"
 import {uploadOnCloudinary, deleteCloudinary} from "../utils/cloudinary.js"
@@ -57,7 +54,6 @@ const registerUser = asyncHandler( async (req, res) => {
     const user = await User.create({
          
         pic: pic.url, 
-        coverImage: coverImage?.url || "", 
         email, 
         password, 
         username: username.toLowerCase(), 
@@ -203,13 +199,13 @@ const changeCurrentPassword = asyncHandler(async(req, res) => {
     }
 
     user.password = newPassword
-    await user.save({validateBeforeSave: false})
+    await user.save()
 
     return res
     .status(200)
     .json(new ApiResponse(200, {}, "Password changed successfully"))
 })
-//
+
 const getCurrentUser = asyncHandler(async(req, res) => {
     return res
     .status(200)
@@ -217,9 +213,9 @@ const getCurrentUser = asyncHandler(async(req, res) => {
 })
 
 const updateAccountDetails = asyncHandler(async(req, res) => {
-    const { email} = req.body
+    const {username , email} = req.body
 
-    if(!email) {
+    if(!email || !username) {
         throw new ApiError(400, "All fields are required")
     }
 
@@ -229,6 +225,7 @@ const updateAccountDetails = asyncHandler(async(req, res) => {
             $set: {
                  
                 email, 
+                username
             }
         }, 
         {new : true}
@@ -271,6 +268,22 @@ const updateUserPic = asyncHandler(async (req, res) => {
     );
 });
 
+const findUsersByName = asyncHandler(async (req, res) => {
+    const { name } = req.body;
+
+    try {
+        let users = await User.find({ username: { $regex: name, $options: 'i' } }).select("-password -refreshToken");
+        if (users.length !== 0) {
+            res.status(200)
+               .json(new ApiResponse(200, users, "Users by name"));
+        } else {
+            res.status(404)
+               .json(new ApiResponse(404, users, "No user found"));
+        }
+    } catch (err) {
+        throw new ApiError(500, "Server side error in findUsersByName");
+    }
+});
 
 export {
     registerUser, 
@@ -281,4 +294,5 @@ export {
     getCurrentUser, 
     updateAccountDetails, 
     updateUserPic, 
+    findUsersByName
 }
