@@ -83,7 +83,7 @@ const loginUser = asyncHandler(async(req, res) => {
 
     const user = await User.findOne({
         $or: [{ username }, { email }]
-    })
+    });
 
     if(!user) {
         throw new ApiError(404, "User does not exist")
@@ -96,7 +96,7 @@ const loginUser = asyncHandler(async(req, res) => {
 
     const {accessToken, refreshToken} = await generateAccessAndRefreshTokens(user._id)
 
-    const loggedInUser = await User.findById(user._id).select("-password -refreshToken")
+    const loggedInUser = await User.findById(user._id).select("-password -refreshToken").populate(groupID);
 
     const options = {
         httpOnly: true, 
@@ -272,7 +272,7 @@ const findUsersByName = asyncHandler(async (req, res) => {
     const { name } = req.body;
 
     try {
-        let users = await User.find({ username: { $regex: name, $options: 'i' } }).select("-password -refreshToken");
+        const users = await User.find({ username: { $regex: name, $options: 'i' } }).select("-password -refreshToken");
         if (users.length !== 0) {
             res.status(200)
                .json(new ApiResponse(200, users, "Users by name"));
