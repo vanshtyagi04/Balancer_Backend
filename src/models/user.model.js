@@ -30,6 +30,7 @@ const userSchema = new Schema(
         groupID: [{
             type: Schema.Types.ObjectId,
             ref: "Group",
+            default: null,
         }],
         refreshToken: {
             type: String
@@ -54,7 +55,7 @@ userSchema.pre("save", async function (next) {
     }
 });
 
-userSchema.pre("save", async function (next) {
+userSchema.post("save", async function (next) {
     if (this.isNew) { 
         try {
                 const groupData = {

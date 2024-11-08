@@ -53,29 +53,32 @@ groupSchema.pre('save', function(next) {
 });
 
 groupSchema.post('save', async function(doc, next) {
-    try {
-        const categoryData = {
-            name: "Isolated Task", 
-            description: "This is a category for isolated tasks.", 
-            groupID: doc._id, 
-        };
-        const newCategory = new Category(categoryData);
-        await newCategory.save();
+    if (doc.isNew) {
+        try {
+            const categoryData = {
+                name: "Isolated Task", 
+                description: "This is a category for isolated tasks.", 
+                groupID: doc._id, 
+            };
+            const newCategory = new Category(categoryData);
+            await newCategory.save();
+            const chatData = {
+                groupID: doc._id,
+                participants: doc.members,
+            };
+            const newChat = new Chat(chatData);
+            await newChat.save();
+            await mongoose.model("Group").findByIdAndUpdate(doc._id, { chat: newChat._id });
 
-        const chatData = {
-            groupID: doc._id,
-            participants: doc.members,
-        };
-        const newChat = new Chat(chatData);
-        await newChat.save();
-
-        await mongoose.model("Group").findByIdAndUpdate(doc._id, { chat: newChat._id });
-
+            next();
+        } catch (error) {
+            next(error);
+        }
+    } else {
         next();
-    } catch (error) {
-        next(error);
     }
 });
+
 
 const Group = mongoose.model("Group", groupSchema);
 export default Group;
