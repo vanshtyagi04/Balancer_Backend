@@ -4,6 +4,7 @@ import User from "../models/user.model.js"
 import {uploadOnCloudinary, deleteCloudinary} from "../utils/cloudinary.js"
 import ApiResponse  from "../utils/ApiResponse.js"
 import jwt from "jsonwebtoken"
+import Notification from "../models/notification.model.js"
 
 const generateAccessAndRefreshTokens = async(userId) => {
     try {
@@ -285,6 +286,21 @@ const findUsersByName = asyncHandler(async (req, res) => {
     }
 });
 
+const getNotifications = asyncHandler(async(req , res) => {
+    const { userId } = req.body;
+    try {
+        const notifications = await Notification.find({ userID : userId })
+        .populate({ path: 'groupID', select: 'name' }) 
+        .populate({ path: 'taskID', select: 'title' });
+        if (notifications.length === 0) {
+            return res.status(404).json(new ApiResponse(404, null, "No notifications found for this task."));
+        }
+        return res.status(200).json(new ApiResponse(200, comments, "Notifiactions retrieved successfully."));
+    } catch (error) {
+        throw new ApiError(500, "Error getting notifiactions");
+    }
+})
+
 export {
     registerUser, 
     loginUser, 
@@ -294,5 +310,6 @@ export {
     getCurrentUser, 
     updateAccountDetails, 
     updateUserPic, 
-    findUsersByName
+    findUsersByName,
+    getNotifications
 }
