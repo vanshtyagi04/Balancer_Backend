@@ -32,7 +32,7 @@ const deleteCategory = asyncHandler(async (req, res, next) => {
             throw new ApiError(404, "Category not found.");
         }
 
-        await Task.updateMany({ categoryID: id }, { $unset: { categoryID: "" } });
+        await Task.updateMany({ categoryID: id }, { $unset: { categoryID: null } });
 
         await Category.findByIdAndDelete(id);
         return res
@@ -58,9 +58,6 @@ const updateCategory = asyncHandler(async (req, res, next) => {
         if (description) category.description = description;
 
         await category.save();
-
-        await Task.updateMany({ categoryID: id }, { $set: { categoryID: id } });
-
         return res
         .status(200)
         .json(new ApiResponse(200, category, "Category updated successfully."));

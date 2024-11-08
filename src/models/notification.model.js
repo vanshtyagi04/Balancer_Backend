@@ -10,14 +10,18 @@ const notificationSchema = new Schema(
              type: String,
              required: true,
         },
-        task: {
+        taskID: {
             type: Schema.Types.ObjectId,
             ref: "Task" 
         },
-        groupName: {
-            type: String,
-            required: true
-        }
+        userID: {
+            type: Schema.Types.ObjectId,
+            ref: "User" 
+        },
+        groupID: {
+            type: Schema.Types.ObjectId,
+            ref: "Group" 
+        },
     },
     {
         timestamps: true

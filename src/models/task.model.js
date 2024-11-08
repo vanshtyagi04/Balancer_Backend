@@ -68,6 +68,21 @@ const taskSchema = new Schema(
             type: Date,
             default: null
         },
+
+        priorNotificationStatus: {
+            type: Boolean,
+            default: false,
+        },
+
+        urgentNotificationStatus: {
+            type: Boolean,
+            default: false,
+        },
+        
+        dueDateNotificationStatus: {
+            type: Boolean,
+            default: false,
+        }
     },
     {
         timestamps: true,
