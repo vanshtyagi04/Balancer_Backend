@@ -4,8 +4,9 @@ import ApiError from '../utils/ApiError.js';
 import ApiResponse from '../utils/ApiResponse.js';
 import mongoose from 'mongoose';
 import { asyncHandler } from '../utils/asyncHandler.js';
+import Group from  "../models/group.model.js"
 
-const createCategory = asyncHandler(async (req, res, next) => {
+const createCategory = asyncHandler(async (req, res) => {
     const { name, description, groupID } = req.body;
 
     if (!name || !description || !groupID) {
@@ -13,6 +14,13 @@ const createCategory = asyncHandler(async (req, res, next) => {
     }
 
     try {
+        const group = await Group.findById(groupID);
+        if (!group) {
+            throw new ApiError(404, "Group not found.");
+        }
+        if (!group.admin.equals(req.user._id)) {
+            throw new ApiError(403, "You must be an admin to create a category.");
+        }
         const newCategory = await Category.create({ name, description, groupID });
         return res
         .status(201)
@@ -23,10 +31,18 @@ const createCategory = asyncHandler(async (req, res, next) => {
     }
 })
 
-const deleteCategory = asyncHandler(async (req, res, next) => {
+const deleteCategory = asyncHandler(async (req, res) => {
     const { id } = req.params;
+    const { groupID } = req.body;
 
     try {
+        const group = await Group.findById(groupID);
+        if (!group) {
+            throw new ApiError(404, "Group not found.");
+        }
+        if (!group.admin.equals(req.user._id)) {
+            throw new ApiError(403, "You must be an admin to delete a category.");
+        }
         const category = await Category.findById(id);
         if (!category) {
             throw new ApiError(404, "Category not found.");
@@ -44,11 +60,18 @@ const deleteCategory = asyncHandler(async (req, res, next) => {
     }
 })
 
-const updateCategory = asyncHandler(async (req, res, next) => {
+const updateCategory = asyncHandler(async (req, res) => {
     const { id } = req.params;
-    const { name, description } = req.body;
+    const { name, description , groupID } = req.body;
 
     try {
+        const group = await Group.findById(groupID);
+        if (!group) {
+            throw new ApiError(404, "Group not found.");
+        }
+        if (!group.admin.equals(req.user._id)) {
+            throw new ApiError(403, "You must be an admin to update a category.");
+        }
         const category = await Category.findById(id);
         if (!category) {
             throw new ApiError(404, "Category not found.");
@@ -92,12 +115,6 @@ const getCategory = asyncHandler(async (req, res) => {
                 }
             },
             {
-                $unwind: {
-                    path: "$assignedToUser",
-                    preserveNullAndEmptyArrays: true
-                }
-            },
-            {
                 $project: {
                     _id: 1,
                     title: 1,
@@ -105,10 +122,16 @@ const getCategory = asyncHandler(async (req, res) => {
                     dueDate: 1,
                     priority: 1,
                     assignedTo: {
-                        _id: "$assignedToUser._id",
-                        username: "$assignedToUser.username",
-                        email: "$assignedToUser.email",
-                        pic: "$assignedToUser.pic"
+                        $map: {
+                            input: '$assignedToUser',
+                            as: 'user',
+                            in: {
+                                _id: '$$user._id',
+                                username: '$$user.username',
+                                email: '$$user.email',
+                                pic: '$$user.pic'
+                            }
+                        }
                     },
                     completedAt: 1,
                     createdAt: 1,
@@ -116,6 +139,7 @@ const getCategory = asyncHandler(async (req, res) => {
                 }
             }
         ]);
+        
 
         const options = {
             page: parseInt(page),
@@ -129,6 +153,7 @@ const getCategory = asyncHandler(async (req, res) => {
                 id: category._id,
                 name: category.name,
                 description: category.description,
+                group: category.groupID,
             },
             tasks: result.docs,
             totalPages: result.totalPages,
@@ -174,12 +199,6 @@ const getTasksByPriority = asyncHandler(async (req, res) => {
                 }
             },
             {
-                $unwind: {
-                    path: "$assignedToUser",
-                    preserveNullAndEmptyArrays: true
-                }
-            },
-            {
                 $project: {
                     _id: 1,
                     title: 1,
@@ -187,10 +206,16 @@ const getTasksByPriority = asyncHandler(async (req, res) => {
                     dueDate: 1,
                     priority: 1,
                     assignedTo: {
-                        _id: "$assignedToUser._id",
-                        username: "$assignedToUser.username",
-                        email: "$assignedToUser.email",
-                        pic: "$assignedToUser.pic"
+                        $map: {
+                            input: '$assignedToUser',
+                            as: 'user',
+                            in: {
+                                _id: '$$user._id',
+                                username: '$$user.username',
+                                email: '$$user.email',
+                                pic: '$$user.pic'
+                            }
+                        }
                     },
                     completedAt: 1,
                     createdAt: 1,
@@ -255,12 +280,6 @@ const getTasksByStage = asyncHandler(async (req, res) => {
                 }
             },
             {
-                $unwind: {
-                    path: "$assignedToUser",
-                    preserveNullAndEmptyArrays: true
-                }
-            },
-            {
                 $project: {
                     _id: 1,
                     title: 1,
@@ -268,10 +287,16 @@ const getTasksByStage = asyncHandler(async (req, res) => {
                     dueDate: 1,
                     priority: 1,
                     assignedTo: {
-                        _id: "$assignedToUser._id",
-                        username: "$assignedToUser.username",
-                        email: "$assignedToUser.email",
-                        pic: "$assignedToUser.pic"
+                        $map: {
+                            input: '$assignedToUser',
+                            as: 'user',
+                            in: {
+                                _id: '$$user._id',
+                                username: '$$user.username',
+                                email: '$$user.email',
+                                pic: '$$user.pic'
+                            }
+                        }
                     },
                     completedAt: 1,
                     createdAt: 1,
@@ -335,12 +360,6 @@ const getTasksByDueDate = asyncHandler(async (req, res) => {
                 }
             },
             {
-                $unwind: {
-                    path: "$assignedToUser",
-                    preserveNullAndEmptyArrays: true
-                }
-            },
-            {
                 $project: {
                     _id: 1,
                     title: 1,
@@ -348,10 +367,16 @@ const getTasksByDueDate = asyncHandler(async (req, res) => {
                     dueDate: 1,
                     priority: 1,
                     assignedTo: {
-                        _id: "$assignedToUser._id",
-                        username: "$assignedToUser.username",
-                        email: "$assignedToUser.email",
-                        pic: "$assignedToUser.pic"
+                        $map: {
+                            input: '$assignedToUser',
+                            as: 'user',
+                            in: {
+                                _id: '$$user._id',
+                                username: '$$user.username',
+                                email: '$$user.email',
+                                pic: '$$user.pic'
+                            }
+                        }
                     },
                     completedAt: 1,
                     createdAt: 1,
@@ -411,12 +436,6 @@ const getTasksByAssignedTo = asyncHandler(async (req, res) => {
                 }
             },
             {
-                $unwind: {
-                    path: "$assignedToUser",
-                    preserveNullAndEmptyArrays: true
-                }
-            },
-            {
                 $project: {
                     _id: 1,
                     title: 1,
@@ -424,10 +443,16 @@ const getTasksByAssignedTo = asyncHandler(async (req, res) => {
                     dueDate: 1,
                     priority: 1,
                     assignedTo: {
-                        _id: "$assignedToUser._id",
-                        username: "$assignedToUser.username",
-                        email: "$assignedToUser.email",
-                        pic: "$assignedToUser.pic"
+                        $map: {
+                            input: '$assignedToUser',
+                            as: 'user',
+                            in: {
+                                _id: '$$user._id',
+                                username: '$$user.username',
+                                email: '$$user.email',
+                                pic: '$$user.pic'
+                            }
+                        }
                     },
                     completedAt: 1,
                     createdAt: 1,

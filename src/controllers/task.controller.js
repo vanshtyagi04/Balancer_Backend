@@ -4,6 +4,8 @@ import ApiError from "../utils/ApiError.js"
 import { asyncHandler } from "../utils/asyncHandler.js";
 import SubTask from "../models/subTask.model.js";
 import Comment from "../models/comment.model.js";
+import Group from "../models/group.model.js";
+import mongoose from 'mongoose';
 
 const createTask = asyncHandler(async (req, res) => {
     const { title, description, dueDate, priority, assignedBy, assignedTo, categoryID } = req.body;
@@ -31,29 +33,44 @@ const createTask = asyncHandler(async (req, res) => {
 
 const updateTask = asyncHandler(async (req, res) => {
     const { taskId } = req.params;
-    const { title, description, dueDate, priority, assignedBy, assignedTo, categoryID, stage } = req.body;
+    const { title, description, dueDate, priority,stage } = req.body;
 
     try {
-        const task = await Task.findByIdAndUpdate(
+         const task = await Task.findById(taskId).populate('categoryID');
+         if (!task) {
+             throw new ApiError(404, "Task not found");
+         }
+         const { categoryID, assignedTo } = task;
+         const groupID = categoryID.groupID;
+         if (!groupID) {
+             throw new ApiError(400, "Category does not have an associated group");
+         }
+         const group = await Group.findById(groupID);
+         if (!group) {
+             throw new ApiError(404, "Group not found");
+         }
+         const isUserAdmin = group.admin.equals(req.user._id)
+         const isUserAssigned = assignedTo.some(user => user.equals(req.user._id));
+         if (!isUserAdmin && !isUserAssigned) {
+             throw new ApiError(403, "You are not authorized to update this task");
+         }
+        const updatedTask = await Task.findByIdAndUpdate(
             taskId,
             {
                 title,
                 description,
                 dueDate,
                 priority,
-                assignedBy,
-                assignedTo,
-                categoryID,
                 stage,
             },
             { new: true }
         );
 
-        if (!task) {
-            throw new ApiError(404, "Task not found");
+        if (!updatedTask) {
+            throw new ApiError(404, "Could not update the task");
         }
 
-        return res.status(200).json(new ApiResponse(200, task, "Task updated successfully"));
+        return res.status(200).json(new ApiResponse(200, updatedTask, "Task updated successfully"));
     } catch (error) {
         throw new ApiError(500, "Error in updating the task",);
     }
@@ -61,10 +78,28 @@ const updateTask = asyncHandler(async (req, res) => {
 
 const deleteTask = asyncHandler(async (req, res) => {
     const { taskId } = req.params;
-
-    const task = await Task.findByIdAndDelete(taskId);
-
+    const task = await Task.findById(taskId).populate('categoryID');
     if (!task) {
+        throw new ApiError(404, "Task not found");
+    }
+    const { categoryID, assignedTo } = task;
+    const groupID = categoryID.groupID;
+    if (!groupID) {
+        throw new ApiError(400, "Category does not have an associated group");
+    }
+    const group = await Group.findById(groupID);
+    if (!group) {
+        throw new ApiError(404, "Group not found");
+    }
+    const isUserAdmin = group.admin.equals(req.user._id)
+    const isUserAssigned = assignedTo.some(user => user.equals(req.user._id));
+    if (!isUserAdmin && !isUserAssigned) {
+        throw new ApiError(403, "You are not authorized to delete this task");
+    }
+
+    const deletedTask = await Task.findByIdAndDelete(taskId);
+
+    if (!deletedTask) {
         return res.status(404).json(new ApiResponse(404, null, "Task not found"));
     }
 
@@ -103,6 +138,7 @@ const getTasksByStage = asyncHandler(async (req, res) => {
     const { page, limit } = req.query;
     try {
         const pipeline = [
+            { $match: { assignedTo: mongoose.Types.ObjectId(req.user._id) } },
             { $match: { stage } },
             { $sort: { createdAt: -1 } }, 
         ];
@@ -120,6 +156,7 @@ const getTasksByDueDate = asyncHandler(async (req, res) => {
     const { page, limit } = req.query;
     try {
         const pipeline = [
+            { $match: { assignedTo: mongoose.Types.ObjectId(req.user._id) } },
             { $match: { dueDate: { $lte: new Date(dueDate) } } },
             { $sort: { createdAt: -1 } }, 
         ];
@@ -137,6 +174,7 @@ const getTasksByPriority = asyncHandler(async (req, res) => {
     const { page, limit } = req.query;
     try {
         const pipeline = [
+            { $match: { assignedTo: mongoose.Types.ObjectId(req.user._id) } },
             { $match: { priority } },
             { $sort: { createdAt: -1 } }, 
         ];
@@ -175,6 +213,75 @@ const getCommentsForTask = asyncHandler(async (req, res) => {
     }
 });
 
+const addUserToTask = asyncHandler(async (req, res) => {
+    const { taskId } = req.params; 
+    const { userId } = req.body;  
+
+    try {
+        const task = await Task.findById(taskId).populate('categoryID');
+        if (!task) {
+            throw new ApiError(404, "Task not found");
+        }
+        const { categoryID } = task;
+        const groupID = categoryID.groupID;
+        if (!groupID) {
+            throw new ApiError(400, "Category does not have an associated group");
+        }
+        const group = await Group.findById(groupID);
+        if (!group) {
+            throw new ApiError(404, "Group not found");
+        }
+        const isUserAdmin = group.admin.equals(req.user._id)
+       
+        if (!isUserAdmin) {
+            throw new ApiError(403, "You are not authorized to add user to this task");
+        }
+        if (task.assignedTo.includes(mongoose.Types.ObjectId(userId))) {
+            throw new ApiError(400, "User is already assigned to this task");
+        }
+        task.assignedTo.push(mongoose.Types.ObjectId(userId));
+        const updatedTask = await task.save();
+        return res.status(200).json(new ApiResponse(200, updatedTask, "User added to task successfully"));
+
+    } catch (error) {
+        throw new ApiError(500, "Error adding user to task");
+    }
+});
+
+const removeUserFromTask = asyncHandler(async (req, res) => {
+    const { taskId } = req.params;  
+    const { userId } = req.body;   
+    try {
+        const task = await Task.findById(taskId).populate('categoryID');
+        if (!task) {
+            throw new ApiError(404, "Task not found");
+        }
+        const { categoryID } = task;
+        const groupID = categoryID.groupID;
+        if (!groupID) {
+            throw new ApiError(400, "Category does not have an associated group");
+        }
+        const group = await Group.findById(groupID);
+        if (!group) {
+            throw new ApiError(404, "Group not found");
+        }
+        const isUserAdmin = group.admin.equals(req.user._id)
+       
+        if (!isUserAdmin) {
+            throw new ApiError(403, "You are not authorized to remove user from this task");
+        }
+        if (!task.assignedTo.includes(mongoose.Types.ObjectId(userId))) {
+            throw new ApiError(400, "User is not assigned to this task");
+        }
+        task.assignedTo = task.assignedTo.filter(user => !user.equals(mongoose.Types.ObjectId(userId)));
+        const updatedTask = await task.save();
+        return res.status(200).json(new ApiResponse(200, updatedTask, "User removed from task successfully"));
+
+    } catch (error) {
+        throw new ApiError(500, "Error removing user from task");
+    }
+});
+
 
 
 export {
@@ -186,5 +293,7 @@ export {
     getTasksByDueDate,
     getTasksByPriority,
     getSubTasksForTask,
-    getCommentsForTask
+    getCommentsForTask,
+    addUserToTask,
+    removeUserFromTask
 };
