@@ -39,7 +39,9 @@ const deleteGroup = asyncHandler(async (req, res) => {
         if (!group) {
             throw new ApiError(404, "Group not found.");
         }
-
+        if (!group.admin.equals(req.user._id)) {
+            throw new ApiError(403, "You must be admin to delete a group.");
+        }
         await Chat.findByIdAndDelete(group.chat);
         await Group.findByIdAndDelete(id);
 
@@ -61,7 +63,9 @@ const addMembers = asyncHandler(async (req, res) => {
         if (!group) {
             throw new ApiError(404, "Group not found.");
         }
-
+        if (!group.admin.equals(req.user._id)) {
+            throw new ApiError(403, "You must be admin to add members to a group.");
+        }
         if (group.isPersonal) {
             throw new ApiError(403, "Cannot add members to a personal group.");
         }
@@ -99,7 +103,9 @@ const removeMembers = asyncHandler(async (req, res) => {
         if (!group) {
             throw new ApiError(404, "Group not found.");
         }
-
+        if (!group.admin.equals(req.user._id)) {
+            throw new ApiError(403, "You must be an admin to remove a member from group.");
+        }
         if (group.isPersonal) {
             throw new ApiError(403, "Cannot remove members from a personal group.");
         }
@@ -154,7 +160,9 @@ const changeAdmin = asyncHandler(async (req, res) => {
         if (!group) {
             throw new ApiError(404, "Group not found.");
         }
-
+        if (!group.admin.equals(req.user._id)) {
+            throw new ApiError(403, "You must be an admin to change the admin of group.");
+        }
         if (group.isPersonal) {
             throw new ApiError(403, "Cannot change admin of a personal group");
         }
@@ -183,6 +191,9 @@ const updateGroupInfo = asyncHandler(async (req, res) => {
         const group = await Group.findById(id);
         if (!group) {
             throw new ApiError(404, "Group not found.");
+        }
+        if (!group.admin.equals(req.user._id)) {
+            throw new ApiError(403, "You must be an admin to update the group details.");
         }
 
         if (name) group.name = name;

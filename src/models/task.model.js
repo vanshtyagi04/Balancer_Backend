@@ -53,11 +53,11 @@ const taskSchema = new Schema(
             ref: "User",
             required: [true, 'AssignedBy is required'],
         },
-        assignedTo: {
+        assignedTo: [{
             type: Schema.Types.ObjectId,
             ref: "User",
             required: [true, 'AssignedTo is required'],
-        },
+        }],
         categoryID: {
             type: Schema.Types.ObjectId,
             ref: "Category",
