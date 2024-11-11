@@ -1,5 +1,5 @@
-import Task from "../models/task.model";
-import { sendUpcomingDeadlineReminder , sendUrgentDeadlineReminder , sendOverdueTaskReminderMail } from "./email";
+import Task from "../models/task.model.js";
+import { sendUpcomingDeadlineReminder , sendUrgentDeadlineReminder , sendOverdueTaskReminderMail } from "./email.js";
 
 const sendRemindersForUpcomingDeadlines = async () => {
     try {
