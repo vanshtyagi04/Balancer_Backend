@@ -1,5 +1,5 @@
 import nodemailer from "nodemailer";
-import Task from "./task.model.js";
+import Task from "../models/task.model.js";
 import Notification from "../models/notification.model.js";
 import Category from "../models/category.model.js";
 
