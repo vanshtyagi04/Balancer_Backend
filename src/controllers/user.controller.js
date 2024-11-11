@@ -1,12 +1,10 @@
 import {asyncHandler} from "../utils/asyncHandler.js"
-import Notification from "../models/notification.model.js";
-import Chat from "./chat.model.js";
-import Group from "../models/group.model.js";
 import ApiError from "../utils/ApiError.js"
 import User from "../models/user.model.js"
 import {uploadOnCloudinary, deleteCloudinary} from "../utils/cloudinary.js"
 import ApiResponse  from "../utils/ApiResponse.js"
 import jwt from "jsonwebtoken"
+import Notification from "../models/notification.model.js"
 
 const generateAccessAndRefreshTokens = async(userId) => {
     try {
@@ -57,7 +55,6 @@ const registerUser = asyncHandler( async (req, res) => {
     const user = await User.create({
          
         pic: pic.url, 
-        coverImage: coverImage?.url || "", 
         email, 
         password, 
         username: username.toLowerCase(), 
@@ -87,7 +84,7 @@ const loginUser = asyncHandler(async(req, res) => {
 
     const user = await User.findOne({
         $or: [{ username }, { email }]
-    })
+    });
 
     if(!user) {
         throw new ApiError(404, "User does not exist")
@@ -100,7 +97,7 @@ const loginUser = asyncHandler(async(req, res) => {
 
     const {accessToken, refreshToken} = await generateAccessAndRefreshTokens(user._id)
 
-    const loggedInUser = await User.findById(user._id).select("-password -refreshToken")
+    const loggedInUser = await User.findById(user._id).select("-password -refreshToken").populate(groupID);
 
     const options = {
         httpOnly: true, 
@@ -203,13 +200,13 @@ const changeCurrentPassword = asyncHandler(async(req, res) => {
     }
 
     user.password = newPassword
-    await user.save({validateBeforeSave: false})
+    await user.save()
 
     return res
     .status(200)
     .json(new ApiResponse(200, {}, "Password changed successfully"))
 })
-//
+
 const getCurrentUser = asyncHandler(async(req, res) => {
     return res
     .status(200)
@@ -217,9 +214,9 @@ const getCurrentUser = asyncHandler(async(req, res) => {
 })
 
 const updateAccountDetails = asyncHandler(async(req, res) => {
-    const { email} = req.body
+    const {username , email} = req.body
 
-    if(!email) {
+    if(!email || !username) {
         throw new ApiError(400, "All fields are required")
     }
 
@@ -229,6 +226,7 @@ const updateAccountDetails = asyncHandler(async(req, res) => {
             $set: {
                  
                 email, 
+                username
             }
         }, 
         {new : true}
@@ -271,6 +269,37 @@ const updateUserPic = asyncHandler(async (req, res) => {
     );
 });
 
+const findUsersByName = asyncHandler(async (req, res) => {
+    const { name } = req.body;
+
+    try {
+        const users = await User.find({ username: { $regex: name, $options: 'i' } }).select("-password -refreshToken");
+        if (users.length !== 0) {
+            res.status(200)
+               .json(new ApiResponse(200, users, "Users by name"));
+        } else {
+            res.status(404)
+               .json(new ApiResponse(404, users, "No user found"));
+        }
+    } catch (err) {
+        throw new ApiError(500, "Server side error in findUsersByName");
+    }
+});
+
+const getNotifications = asyncHandler(async(req , res) => {
+    const { userId } = req.body;
+    try {
+        const notifications = await Notification.find({ userID : userId })
+        .populate({ path: 'groupID', select: 'name' }) 
+        .populate({ path: 'taskID', select: 'title' });
+        if (notifications.length === 0) {
+            return res.status(404).json(new ApiResponse(404, null, "No notifications found for this task."));
+        }
+        return res.status(200).json(new ApiResponse(200, comments, "Notifiactions retrieved successfully."));
+    } catch (error) {
+        throw new ApiError(500, "Error getting notifiactions");
+    }
+})
 
 export {
     registerUser, 
@@ -281,4 +310,6 @@ export {
     getCurrentUser, 
     updateAccountDetails, 
     updateUserPic, 
+    findUsersByName,
+    getNotifications
 }

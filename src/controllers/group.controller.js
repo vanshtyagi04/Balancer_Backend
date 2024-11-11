@@ -3,6 +3,8 @@ import ApiError from '../utils/ApiError.js';
 import ApiResponse from '../utils/ApiResponse.js';
 import Chat from '../models/chat.model.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
+import User from '../models/user.model.js';
+import Category from '../models/category.model.js';
 
 const createGroup = asyncHandler(async (req, res) => {
     const { name, description, isPersonal } = req.body;
@@ -15,7 +17,7 @@ const createGroup = asyncHandler(async (req, res) => {
         name,
         description,
         admin: req.user._id,
-        isPersonal: isPersonal || true,
+        isPersonal: isPersonal || false,
     };
 
     try {
@@ -37,7 +39,9 @@ const deleteGroup = asyncHandler(async (req, res) => {
         if (!group) {
             throw new ApiError(404, "Group not found.");
         }
-
+        if (!group.admin.equals(req.user._id)) {
+            throw new ApiError(403, "You must be admin to delete a group.");
+        }
         await Chat.findByIdAndDelete(group.chat);
         await Group.findByIdAndDelete(id);
 
@@ -59,7 +63,9 @@ const addMembers = asyncHandler(async (req, res) => {
         if (!group) {
             throw new ApiError(404, "Group not found.");
         }
-
+        if (!group.admin.equals(req.user._id)) {
+            throw new ApiError(403, "You must be admin to add members to a group.");
+        }
         if (group.isPersonal) {
             throw new ApiError(403, "Cannot add members to a personal group.");
         }
@@ -71,6 +77,13 @@ const addMembers = asyncHandler(async (req, res) => {
         if (chat) {
             chat.participants.push(...members);
             await chat.save();
+        }
+        for (let user_id of members) {
+            const user = await User.findOne({ _id: user_id });
+            if (user) {
+                user.groupID.push(group._id);
+                await user.save();  
+            }
         }
 
         return res
@@ -90,20 +103,29 @@ const removeMembers = asyncHandler(async (req, res) => {
         if (!group) {
             throw new ApiError(404, "Group not found.");
         }
-
+        if (!group.admin.equals(req.user._id)) {
+            throw new ApiError(403, "You must be an admin to remove a member from group.");
+        }
         if (group.isPersonal) {
             throw new ApiError(403, "Cannot remove members from a personal group.");
         }
 
-        group.members = group.members.filter(member => !members.includes(member.toString()));
+        group.members = group.members.filter(member => !members.includes(member));
         await group.save();
 
         const chat = await Chat.findById(group.chat);
         if (chat) {
-            chat.participants = chat.participants.filter(participant => !members.includes(participant.toString()));
+            chat.users = chat.users.filter(user => !members.includes(user));
             await chat.save();
         }
 
+        for (let user_id of members) {
+            const user = await User.findById(user_id);
+            if (user) {
+                user.groupID = user.groupID.filter(groupId => !groupId.equals(group._id));
+                await user.save();
+            }
+        }
         return res
         .status(200)
         .json(new ApiResponse(200, group, "Members removed successfully."));
@@ -121,7 +143,6 @@ const getGroup = asyncHandler(async (req, res) => {
         if (!group) {
             throw new ApiError(404, "Group not found.");
         }
-        // group unread messages 
         return res
         .status(200)
         .json(new ApiResponse(200,group, "Group information retrieved successfully."));
@@ -138,6 +159,12 @@ const changeAdmin = asyncHandler(async (req, res) => {
         const group = await Group.findById(id);
         if (!group) {
             throw new ApiError(404, "Group not found.");
+        }
+        if (!group.admin.equals(req.user._id)) {
+            throw new ApiError(403, "You must be an admin to change the admin of group.");
+        }
+        if (group.isPersonal) {
+            throw new ApiError(403, "Cannot change admin of a personal group");
         }
 
         if (!group.members.includes(newAdminId)) {
@@ -158,16 +185,20 @@ const changeAdmin = asyncHandler(async (req, res) => {
 
 const updateGroupInfo = asyncHandler(async (req, res) => {
     const { id } = req.params;
-    const { name, description } = req.body;
+    const { name, description , isPersonal } = req.body;
 
     try {
         const group = await Group.findById(id);
         if (!group) {
             throw new ApiError(404, "Group not found.");
         }
+        if (!group.admin.equals(req.user._id)) {
+            throw new ApiError(403, "You must be an admin to update the group details.");
+        }
 
         if (name) group.name = name;
         if (description) group.description = description;
+        if(isPersonal) group.isPersonal = isPersonal;
 
         await group.save();
 
@@ -180,6 +211,25 @@ const updateGroupInfo = asyncHandler(async (req, res) => {
     }
 })
 
+const getCategories = asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    try {
+        const group = await Group.findById(id);
+        if (!group) {
+            throw new ApiError(404, "Group not found.");
+        }
+        const categories = await Category.find({ groupID: group._id });
+        if (categories.length > 0) {
+            res.status(200).json(new ApiResponse(200, categories, "Categories belonging to the group."));
+        } else {
+            res.status(404).json(new ApiResponse(404, categories, "No categories found for this group."));
+        }
+    } 
+    catch (error) {
+        throw new ApiError(500, "Error fetching categories.");
+    }
+});
+
 export { 
     createGroup, 
     deleteGroup, 
@@ -187,5 +237,6 @@ export {
     removeMembers, 
     getGroup, 
     changeAdmin, 
-    updateGroupInfo 
+    updateGroupInfo,
+    getCategories 
 };

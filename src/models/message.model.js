@@ -37,11 +37,11 @@ const messageSchema = new Schema(
 messageSchema.post('save', async function(next) {
     try {
         if (this.isNew) {
-            const user = await Chat.findById(this.chat).select('users');
+            const chat = await Chat.findById(this.chat).select('users');
             if (!user) {
                 return next(new Error('Users not found'));
             }
-            this.deliveredTo = user.users;
+            this.deliveredTo = chat.users;
             next();
         } else {
             next();

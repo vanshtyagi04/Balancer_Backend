@@ -53,11 +53,11 @@ const taskSchema = new Schema(
             ref: "User",
             required: [true, 'AssignedBy is required'],
         },
-        assignedTo: {
+        assignedTo: [{
             type: Schema.Types.ObjectId,
             ref: "User",
             required: [true, 'AssignedTo is required'],
-        },
+        }],
         categoryID: {
             type: Schema.Types.ObjectId,
             ref: "Category",
@@ -68,6 +68,21 @@ const taskSchema = new Schema(
             type: Date,
             default: null
         },
+
+        priorNotificationStatus: {
+            type: Boolean,
+            default: false,
+        },
+
+        urgentNotificationStatus: {
+            type: Boolean,
+            default: false,
+        },
+        
+        dueDateNotificationStatus: {
+            type: Boolean,
+            default: false,
+        }
     },
     {
         timestamps: true,
