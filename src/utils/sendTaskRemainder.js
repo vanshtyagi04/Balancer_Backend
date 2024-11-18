@@ -5,30 +5,35 @@ const sendRemindersForUpcomingDeadlines = async () => {
     try {
       const now = new Date();
       const reminderThreshold = new Date(now.getTime() + 5 * 24 * 60 * 60 * 1000);
-      const fiveDaysAgo = new Date(now.getTime() - 5 * 24 * 60 * 60 * 1000);
       const tasks = await Task.find({
         dueDate: { $lte: reminderThreshold, $gt: now },
         stage: { $ne: "completed" },
         priorNotificationStatus: { $ne: true },
         urgentNotificationStatus: { $ne: true },
-        createdAt: { $lte: fiveDaysAgo }
+        dueDateNotificationStatus: { $ne: true }
       }).populate("assignedTo", "email username");
+
+      const tasksToNotify = tasks.filter(task => {
+        const createdAt = new Date(task.createdAt);
+        const dueDate = new Date(task.dueDate);
+        return (dueDate - createdAt) >= 5 * 24 * 60 * 60 * 1000;
+      });
   
-      if (tasks.length === 0) {
+      if (tasksToNotify.length === 0) {
         console.log("No tasks due soon.");
         return;
       }
   
       await Task.updateMany(
-        { _id: { $in: tasks.map(task => task._id) } },
+        { _id: { $in: tasksToNotify.map(task => task._id) } },
         { $set: { priorNotificationStatus: true } }
       );
   
-      for (const task of tasks) {
+      for (const task of tasksToNotify) {
         await sendUpcomingDeadlineReminder(task._id);
       }
   
-      console.log(`${tasks.length} reminder(s) sent.`);
+      console.log(`${tasksToNotify.length} reminder(s) sent.`);
     } catch (error) {
       console.error("Error scanning tasks for reminders:", error);
     }
@@ -37,32 +42,37 @@ const sendRemindersForUpcomingDeadlines = async () => {
   const sendRemindersForUrgentDeadlines = async () => {
     try {
       const now = new Date();
-      const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
       const reminderThreshold = new Date(now.getTime() + 24 * 60 * 60 * 1000);
       const tasks = await Task.find({
         dueDate: { $lte: reminderThreshold, $gt: now },
         stage: { $ne: "completed" },
         priorNotificationStatus: { $ne: false },
         urgentNotificationStatus: { $ne: true },
-        createdAt: { $lte: oneDayAgo }
+        dueDateNotificationStatus: { $ne: true }
       }).populate("assignedTo", "email username");
+
+      const tasksToNotify = tasks.filter(task => {
+        const createdAt = new Date(task.createdAt);
+        const dueDate = new Date(task.dueDate);
+        return (dueDate - createdAt) >= 24 * 60 * 60 * 1000;
+      });
   
-      if (tasks.length === 0) {
+      if (tasksToNotify.length === 0) {
         console.log("No urgent tasks due soon.");
         return;
       }
   
       await Task.updateMany(
-        { _id: { $in: tasks.map(task => task._id) } },
+        { _id: { $in: tasksToNotify.map(task => task._id) } },
         { $set: { priorNotificationStatus: true } },
         { $set: { urgentNotificationStatus: true } }
       );
   
-      for (const task of tasks) {
+      for (const task of tasksToNotify) {
         await sendUrgentDeadlineReminder(task._id);
       }
   
-      console.log(`${tasks.length} reminder(s) sent.`);
+      console.log(`${tasksToNotify.length} reminder(s) sent.`);
     } catch (error) {
       console.error("Error scanning tasks for reminders:", error);
     }
@@ -84,6 +94,8 @@ const sendRemindersForUpcomingDeadlines = async () => {
   
       await Task.updateMany(
         { _id: { $in: tasks.map(task => task._id) } },
+        { $set: { priorNotificationStatus: true } },
+        { $set: { urgentNotificationStatus: true } },
         { $set: { dueDateNotificationStatus: true } }
       );
   
