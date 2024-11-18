@@ -5,6 +5,7 @@ const sendRemindersForUpcomingDeadlines = async () => {
     try {
       const now = new Date();
       const reminderThreshold = new Date(now.getTime() + 5 * 24 * 60 * 60 * 1000);
+      const fiveDaysAgo = new Date(now.getTime() - 5 * 24 * 60 * 60 * 1000);
       const tasks = await Task.find({
         dueDate: { $lte: reminderThreshold, $gt: now },
         stage: { $ne: "completed" },
@@ -36,6 +37,7 @@ const sendRemindersForUpcomingDeadlines = async () => {
   const sendRemindersForUrgentDeadlines = async () => {
     try {
       const now = new Date();
+      const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
       const reminderThreshold = new Date(now.getTime() + 24 * 60 * 60 * 1000);
       const tasks = await Task.find({
         dueDate: { $lte: reminderThreshold, $gt: now },
