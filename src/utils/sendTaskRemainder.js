@@ -10,6 +10,7 @@ const sendRemindersForUpcomingDeadlines = async () => {
         stage: { $ne: "completed" },
         priorNotificationStatus: { $ne: true },
         urgentNotificationStatus: { $ne: true },
+        createdAt: { $lte: fiveDaysAgo }
       }).populate("assignedTo", "email username");
   
       if (tasks.length === 0) {
@@ -41,6 +42,7 @@ const sendRemindersForUpcomingDeadlines = async () => {
         stage: { $ne: "completed" },
         priorNotificationStatus: { $ne: false },
         urgentNotificationStatus: { $ne: true },
+        createdAt: { $lte: oneDayAgo }
       }).populate("assignedTo", "email username");
   
       if (tasks.length === 0) {
@@ -50,6 +52,7 @@ const sendRemindersForUpcomingDeadlines = async () => {
   
       await Task.updateMany(
         { _id: { $in: tasks.map(task => task._id) } },
+        { $set: { priorNotificationStatus: true } },
         { $set: { urgentNotificationStatus: true } }
       );
   
