@@ -39,15 +39,6 @@ const taskSchema = new Schema(
                 message: '{VALUE} is not a valid task stage',
             },
         },
-        assets: [{
-            type: String,
-            validate: {
-                validator: function(value) {
-                    return value.every(url => /^https?:\/\//.test(url));
-                },
-                message: 'Assets should be valid URLs.',
-            },
-        }],
         assignedBy: {
             type: Schema.Types.ObjectId,
             ref: "User",

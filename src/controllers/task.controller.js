@@ -33,14 +33,14 @@ const createTask = asyncHandler(async (req, res) => {
 
 const updateTask = asyncHandler(async (req, res) => {
     const { taskId } = req.params;
-    const { title, description, dueDate, priority,stage } = req.body;
+    const { title, description, dueDate, priority, stage } = req.body;
 
     try {
          const task = await Task.findById(taskId).populate('categoryID');
          if (!task) {
              throw new ApiError(404, "Task not found");
          }
-         const { categoryID, assignedTo } = task;
+         const { categoryID, assignedTo , completedAt } = task;
          const groupID = categoryID.groupID;
          if (!groupID) {
              throw new ApiError(400, "Category does not have an associated group");
@@ -54,15 +54,22 @@ const updateTask = asyncHandler(async (req, res) => {
          if (!isUserAdmin && !isUserAssigned) {
              throw new ApiError(403, "You are not authorized to update this task");
          }
-        const updatedTask = await Task.findByIdAndUpdate(
+
+         const updateData = {
+             title,
+             description,
+             dueDate,
+             priority,
+             stage,
+         };
+
+         if (stage === 'completed' && completedAt === null) {
+             updateData.completedAt = new Date();
+         }
+
+         const updatedTask = await Task.findByIdAndUpdate(
             taskId,
-            {
-                title,
-                description,
-                dueDate,
-                priority,
-                stage,
-            },
+            updateData,
             { new: true }
         );
 
@@ -72,7 +79,7 @@ const updateTask = asyncHandler(async (req, res) => {
 
         return res.status(200).json(new ApiResponse(200, updatedTask, "Task updated successfully"));
     } catch (error) {
-        throw new ApiError(500, "Error in updating the task",);
+        throw new ApiError(500, "Error in updating the task");
     }
 });
 

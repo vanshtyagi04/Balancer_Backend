@@ -1,6 +1,8 @@
 import Comment from '../models/comment.model.js'; 
 import ApiError from '../utils/ApiError.js'; 
 import ApiResponse from '../utils/ApiResponse.js'; 
+import Task from '../models/task.model.js';
+import Group from '../models/group.model.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 
 const createComment = asyncHandler(async (req, res) => {
@@ -9,6 +11,29 @@ const createComment = asyncHandler(async (req, res) => {
     if (!content || !taskID) {
         throw new ApiError(400, "Content and Task ID are required.");
     }
+    try {
+        const task = await Task.findById(taskID).populate('categoryID');
+        if (!task) {
+            throw new ApiError(404, "Task not found");
+        }
+        const { categoryID, assignedTo } = task;
+        const groupID = categoryID.groupID;
+        if (!groupID) {
+            throw new ApiError(400, "Category does not have an associated group");
+        }
+        const group = await Group.findById(groupID);
+        if (!group) {
+            throw new ApiError(404, "Group not found");
+        }
+        const isUserAdmin = group.admin.equals(req.user._id)
+        const isUserAssigned = assignedTo.some(user => user.equals(req.user._id));
+        if (!isUserAdmin && !isUserAssigned) {
+            throw new ApiError(403, "You are not authorized to comment on this task");
+        }
+        
+   } catch (error) {
+       throw new ApiError(500, "Error in updating the task");
+   }
 
     const commentData = {
         content,
